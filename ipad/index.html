@@ -89,7 +89,7 @@ button,select,input{touch-action:manipulation;-webkit-tap-highlight-color:transp
 </div>
 <script>
 const $=id=>document.getElementById(id);
-let audioCtx=null, analyser=null, data=null, freqData=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, baselineFlux=1, prevSpectrum=null, missionDuration=120, speed=2, lastHit=0, silencePause=false, silenceStart=0, silenceDuration=0, actionSoundCount=0, lastActionSound=0, nextSilenceAt=0, noiseActive=false, lastNoiseEvent=0, silentSince=0;
+let audioCtx=null, analyser=null, data=null, freqData=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, baselineFlux=1, prevSpectrum=null, missionDuration=120, speed=2, lastHit=0, silencePause=false, silenceStart=0, silenceDuration=0, actionSoundCount=0, lastActionSound=0, nextSilenceAt=0, noiseActive=false, lastNoiseEvent=0, silentSince=0, lastSoundSeen=0;
 const isIPad=/iPad|Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1;
 const commands=[
  ['🏃','CORRI SUL POSTO','running'],['🦘','SALTELLI','jumping'],['↔️','SPOSTAMENTO LATERALE','side'],['🙆','BRACCIA SU','arms'],['🏋️','SQUAT','squat'],['👏','BATTITI','clap']
@@ -177,9 +177,10 @@ function loud(a){
   const noiseFloor=Math.max(.003,baseline);
   const fluxThreshold=Math.max(18,baselineFlux*3.2+10);
   const peakThreshold=Math.max(7,baselinePeak*2.4);
-  const rmsThreshold=Math.max(.012,noiseFloor*2.15);
-  const transient=(a.flux>=fluxThreshold&&a.peak>=5)||(a.peak>=peakThreshold&&a.rms>=rmsThreshold);
-  const sustained=a.rms>=rmsThreshold;
+  const rmsThreshold=Math.max(.010,noiseFloor*1.8);
+  const voiceThreshold=Math.max(.0075,noiseFloor*1.20);
+  const transient=(a.flux>=fluxThreshold&&a.peak>=4)||(a.peak>=peakThreshold&&a.rms>=rmsThreshold);
+  const sustained=a.rms>=voiceThreshold;
   return transient||sustained;
  }
  return a.rms>=Math.max(6,baseline*1.35)||a.peak>=Math.max(4,baselinePeak*1.25);
