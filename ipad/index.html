@@ -225,13 +225,13 @@ function loop(now){
  const detected=loud(a);
  $('micFill').style.width=meterPercent(a)+'%';
  if(isIPad){
-  if(!noiseActive && detected && now-lastNoiseEvent>450){noiseActive=true;lastNoiseEvent=now;}
+  if(!noiseActive && detected && now-lastNoiseEvent>450){noiseActive=true;lastNoiseEvent=now;lastSoundSeen=now;}
   if(noiseActive){
-   const releaseThreshold=Math.max(.007,Math.max(.003,baseline)*1.45);
-   if(a.rms<releaseThreshold && a.peak<Math.max(3,baselinePeak*1.35)){
+   const releaseThreshold=Math.max(.006,Math.max(.003,baseline)*1.18);
+   if(a.rms<releaseThreshold && a.peak<Math.max(3,baselinePeak*1.25)){
     if(!silentSince)silentSince=now;
-    if(now-silentSince>=220){noiseActive=false;silentSince=0;}
-   }else{silentSince=0;}
+    if(now-silentSince>=650 && now-lastSoundSeen>=650){noiseActive=false;silentSince=0;}
+   }else{lastSoundSeen=now;silentSince=0;}
   }
  }
  if(current){
@@ -263,7 +263,7 @@ function loop(now){
 }
 async function startGame(){
  if(running)return;
- missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;actionSoundCount=0;noiseActive=false;lastNoiseEvent=0;silentSince=0;prevSpectrum=null;
+ missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;actionSoundCount=0;noiseActive=false;lastNoiseEvent=0;silentSince=0;lastSoundSeen=0;prevSpectrum=null;
  const ok=await initAudio();if(!ok)return;
  if(audioCtx.state==='suspended')await audioCtx.resume();
  $('result').classList.remove('show');score=0;$('score').textContent='0';$('status').textContent='🎤 Ascolto l’ambiente...';
