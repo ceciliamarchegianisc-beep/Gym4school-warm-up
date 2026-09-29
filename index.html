@@ -33,19 +33,19 @@
       </div>
       <div class="status" id="status">Premi AVVIA</div>
       <div class="event" id="event"><div class="eventBox"><div class="eventIcon" id="eventIcon">⚡</div><div class="eventTitle" id="eventTitle">SORPRESA!</div><div class="eventText" id="eventText">Preparati...</div><div class="meter"><div class="meterFill" id="meterFill"></div></div></div></div>
-      <div class="result" id="result"><div class="resultBox"><h2>🔥 MISSIONE COMPLETATA!</h2><div>Hai terminato il Warm-Up.</div><div class="finalScore" id="finalScore">⭐ 0</div><div class="teaser">Questo è solo un assaggio di <b>MOVE MISSION</b>.<br>Altre missioni usano il movimento e il suono in modi completamente diversi.</div><div class="missionList"><span>🥷 NINJA</span><span>🚀 SPACE</span><span>🦊 FOX</span><span>👨‍🚀 ASTRONAUT</span></div><button id="again">🔄 GIOCA ANCORA</button></div></div>
+      <div class="result" id="result"><div class="resultBox"><h2>🔥 MISSIONE COMPLETATA!</h2><div>Hai terminato il Warm-Up.</div><div class="finalScore" id="finalScore">⭐ 0</div><div class="teaser">Questo è solo un assaggio di <b>MOVE MISSION</b>.<br>Altre missioni usano il movimento e il suono in modi completamente diversi.</div><h3 style="margin:18px 0 6px">🏆 CLASSIFICA — TOP 10</h3><div id="leaderboard" style="border:1px solid #dfe6ef;border-radius:14px;overflow:hidden;max-height:210px;overflow-y:auto"></div><div class="missionList"><span>🥷 NINJA</span><span>🚀 SPACE</span><span>🦊 FOX</span><span>👨‍🚀 ASTRONAUT</span></div><button id="again">🔄 GIOCA ANCORA</button></div></div>
     </div>
     <div class="note">Pensato per tablet iPad e Samsung/Android. Può essere collegato a una Smartboard per visualizzare il gioco.</div>
   </div>
 </div>
 <script>
 const $=id=>document.getElementById(id);
-let audioCtx=null, analyser=null, data=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, missionDuration=120, speed=2, lastHit=0, silencePause=false, silenceStart=0, silenceDuration=0;
+let audioCtx=null, analyser=null, data=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, missionDuration=120, speed=2, lastHit=0, silencePause=false, silenceStart=0, silenceDuration=0, actionSoundCount=0, lastActionSound=0, nextSilenceAt=0;
 const isIPad=/iPad|Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1;
 const commands=[
  ['🏃','CORRI SUL POSTO','running'],['🦘','SALTELLI','jumping'],['↔️','SPOSTAMENTO LATERALE','side'],['🙆','BRACCIA SU','arms'],['🏋️','SQUAT','squat'],['👏','BATTITI','clap']
 ];
-function setCommand(c){current=c;$('command').innerHTML=c[0]+' '+c[1]+'<small>Segui il movimento!</small>';$('character').className='character '+c[2];$('character').style.animationDuration=(1.1/speed).toFixed(2)+'s';}
+function setCommand(c){current=c;let instruction='Segui il movimento!';if(c[2]==='arms')instruction='Braccia in alto e SCHIOCCA LE DITA! 🎤';if(c[2]==='squat')instruction='Uno squat al secondo e CONTA AD ALTA VOCE! 🎤';if(c[2]==='clap')instruction='Batti le mani: il microfono ascolta! 🎤';$('command').innerHTML=c[0]+' '+c[1]+'<small>'+instruction+'</small>';$('character').className='character '+c[2];$('character').style.animationDuration=(1.1/speed).toFixed(2)+'s';}
 function stopCharacter(){$('character').className='character';}
 function format(t){return '⏱️ '+Math.max(0,t).toFixed(1)+' s'}
 async function initAudio(){
@@ -110,8 +110,8 @@ function updateEvent(now){
  if(success){finishEvent(true);return}
  if(elapsed>=eventDuration)finishEvent(false);
 }
-function startSilencePause(now){silencePause=true;silenceStart=now;silenceDuration=3200+Math.random()*1800;stopCharacter();$('command').innerHTML='🤫 PAUSA SILENZIO<small>Fermati e resta in silenzio...</small>';$('status').textContent='🤫 SILENZIO';}
-function updateSilencePause(now){const a=audioLevel();const elapsed=now-silenceStart;$('meterFill').style.width=Math.min(100,elapsed/silenceDuration*100)+'%';if(loud(a)){score=Math.max(0,score-1);$('score').textContent=score;$('status').textContent='🔊 Hai fatto rumore!';}if(elapsed>=silenceDuration){silencePause=false;$('meterFill').style.width='0%';$('status').textContent='🔥 VIA!';setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now;}}
+function startSilencePause(now){silencePause=true;silenceStart=now;silenceDuration=4500;stopCharacter();$('eventIcon').textContent='🤫';$('eventTitle').textContent='PAUSA SILENZIO';$('eventText').textContent='Fermati completamente. Nessun rumore!';$('event').classList.add('show');$('meterFill').style.width='0%';$('command').innerHTML='🤫 PAUSA SILENZIO<small>Fermati e resta in silenzio...</small>';$('status').textContent='🤫 SILENZIO';}
+function updateSilencePause(now){const a=audioLevel();const elapsed=now-silenceStart;$('meterFill').style.width=Math.min(100,elapsed/silenceDuration*100)+'%';if(loud(a)){$('status').textContent='🔊 RUMORE! Resta in silenzio';}else{$('status').textContent='🤫 SILENZIO... '+Math.max(0,(silenceDuration-elapsed)/1000).toFixed(1)+' s';}if(elapsed>=silenceDuration){silencePause=false;$('event').classList.remove('show');$('meterFill').style.width='0%';$('status').textContent='🔥 VIA!';setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now;}}
 function chooseEvent(){
  const kinds=['silence','noise','boost'];eventKind=kinds[Math.floor(Math.random()*kinds.length)];openEvent(eventKind);
 }
@@ -123,26 +123,30 @@ function loop(now){
  if(silencePause){updateSilencePause(now);raf=requestAnimationFrame(loop);return}
  if(elapsed>=missionDuration){finishGame();return}
  const a=audioLevel();
- if(current&&current[2]==='clap'&&loud(a)&&now-lastHit>900){score+=2;$('score').textContent=score;$('status').textContent='👏 BATTITO RILEVATO! +2';lastHit=now;$('character').className='character react';setTimeout(()=>running&&current&&current[2]==='clap'&&setCommand(current),350)}
- if(now-lastCommand>(6000-(speed-1)*900)){if(Math.random()<.22){startSilencePause(now)}else{setCommand(commands[Math.floor(Math.random()*commands.length)])}lastCommand=now}
+ if(current&&loud(a)){const kind=current[2];let gap=900,points=2,label='👏 SUONO RILEVATO! +2';if(kind==='arms'){gap=650;points=1;label='🤌 SCHIOCCO RILEVATO! +1'}else if(kind==='squat'){gap=750;points=1;label='🏋️ CONTEGGIO RILEVATO! +1'}else if(kind!=='clap'){gap=1200;points=0}if(points&&now-lastActionSound>gap){score+=points;actionSoundCount++;$('score').textContent=score;$('status').textContent=label;lastActionSound=now;$('character').className='character react';setTimeout(()=>running&&current&&current[2]===kind&&setCommand(current),300)}}
+ if(now-lastCommand>(6000-(speed-1)*900)){setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now}
  if(now>=nextEventAt&&!eventDone){chooseEvent();eventDone=true;nextEventAt=now+18000+Math.random()*16000}
  if(eventDone&&now>nextEventAt-2500)eventDone=false;
+ if(!eventActive&&!silencePause&&elapsed>8&&now>=nextSilenceAt){startSilencePause(now);nextSilenceAt=now+26000+Math.random()*12000;}
  raf=requestAnimationFrame(loop);
 }
 async function startGame(){
  if(running)return;
- missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;
+ missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;actionSoundCount=0;
  const ok=await initAudio();if(!ok)return;
  if(audioCtx.state==='suspended')await audioCtx.resume();
  $('result').classList.remove('show');score=0;$('score').textContent='0';$('status').textContent='🎤 Ascolto l’ambiente...';
  await calibrate();
- running=true;silencePause=false;startTime=performance.now();lastHit=0;lastCommand=startTime-3000;nextEventAt=startTime+Math.min(12000,missionDuration*1000*.25);eventDone=false;setCommand(commands[0]);$('status').textContent='🔥 VIA!';$('start').disabled=true;$('stop').disabled=false;cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);
+ running=true;silencePause=false;startTime=performance.now();lastHit=0;lastActionSound=0;nextSilenceAt=startTime+9000;lastCommand=startTime-3000;nextEventAt=startTime+Math.min(12000,missionDuration*1000*.25);eventDone=false;setCommand(commands[0]);$('status').textContent='🔥 VIA!';$('start').disabled=true;$('stop').disabled=false;cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);
 }
 function stopGame(){
  running=false;cancelAnimationFrame(raf);eventActive=false;silencePause=false;$('event').classList.remove('show');stopCharacter();
  $('start').disabled=false;$('stop').disabled=true;$('timer').textContent='⏱️ '+missionDuration+' s';$('status').textContent='⏹️ Missione fermata';
 }
-function finishGame(){running=false;cancelAnimationFrame(raf);silencePause=false;stopCharacter();$('start').disabled=false;$('stop').disabled=true;$('timer').textContent='⏱️ 00.0 s';$('finalScore').textContent='⭐ '+score;$('result').classList.add('show');$('command').innerHTML='MISSIONE COMPLETATA<small>Ben fatto!</small>'}
+function saveResult(finalScore){let results=[];try{results=JSON.parse(localStorage.getItem('moveMissionWarmupScores')||'[]')}catch(e){}results.push({score:finalScore,date:new Date().toLocaleString('it-IT')});results.sort((a,b)=>b.score-a.score);results=results.slice(0,10);try{localStorage.setItem('moveMissionWarmupScores',JSON.stringify(results))}catch(e){}return results}
+function getResults(){try{return JSON.parse(localStorage.getItem('moveMissionWarmupScores')||'[]')}catch(e){return[]}}
+function renderLeaderboard(){const list=getResults();const html=list.length?list.map((x,i)=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 10px;border-bottom:1px solid #e6edf4"><b>'+(i+1)+'.</b><span style="flex:1;text-align:left">'+x.date+'</span><b>⭐ '+x.score+'</b></div>').join(''):'<div style="padding:12px;color:#64748b">Nessun risultato salvato.</div>';let box=$('leaderboard');if(box)box.innerHTML=html}
+function finishGame(){running=false;cancelAnimationFrame(raf);silencePause=false;stopCharacter();$('start').disabled=false;$('stop').disabled=true;$('timer').textContent='⏱️ 00.0 s';$('finalScore').textContent='⭐ '+score;saveResult(score);renderLeaderboard();$('result').classList.add('show');$('command').innerHTML='MISSIONE COMPLETATA<small>Ben fatto!</small>'}
 $('start').onclick=startGame;$('stop').onclick=stopGame;$('again').onclick=startGame;$('speed').oninput=e=>{speed=parseInt(e.target.value,10);$('speedValue').textContent=speed;if(current)setCommand(current)};$('duration').onchange=e=>{if(!running){missionDuration=parseInt(e.target.value,10);$('timer').textContent='⏱️ '+(missionDuration===120?'02:00':missionDuration+' s')}};
 $('full').onclick=async()=>{try{if(!document.fullscreenElement){if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else if(document.documentElement.webkitRequestFullscreen)document.documentElement.webkitRequestFullscreen()}else if(document.exitFullscreen)await document.exitFullscreen()}catch(e){console.error(e)}};
 document.addEventListener('fullscreenchange',()=>{$('full').textContent=document.fullscreenElement?'↙️ USCITA SCHERMO INTERO':'⛶ SCHERMO INTERO'});document.addEventListener('webkitfullscreenchange',()=>{$('full').textContent=document.webkitFullscreenElement?'↙️ USCITA SCHERMO INTERO':'⛶ SCHERMO INTERO'});document.addEventListener('visibilitychange',()=>{if(document.hidden&&running){stopGame();}});
