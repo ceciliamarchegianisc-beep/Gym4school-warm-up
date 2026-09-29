@@ -45,7 +45,7 @@ const isIPad=/iPad|Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoint
 const commands=[
  ['🏃','CORRI SUL POSTO','running'],['🦘','SALTELLI','jumping'],['↔️','SPOSTAMENTO LATERALE','side'],['🙆','BRACCIA SU','arms'],['🏋️','SQUAT','squat'],['👏','BATTITI','clap']
 ];
-function setCommand(c){current=c;let instruction='Segui il movimento!';if(c[2]==='arms')instruction='Braccia in alto e SCHIOCCA LE DITA! 🎤';if(c[2]==='squat')instruction='Uno squat al secondo e CONTA AD ALTA VOCE! 🎤';if(c[2]==='clap')instruction='Batti le mani: il microfono ascolta! 🎤';$('command').innerHTML=c[0]+' '+c[1]+'<small>'+instruction+'</small>';$('character').className='character '+c[2];$('character').style.animationDuration=(1.1/speed).toFixed(2)+'s';}
+function setCommand(c){current=c;let instruction='Segui il movimento!';if(c[2]==='arms')instruction='Braccia in alto e SCHIOCCA LE DITA! 🎤';if(c[2]==='squat')instruction='Uno squat al secondo e CONTA AD ALTA VOCE! 🎤';if(c[2]==='clap')instruction='Batti le mani: il microfono ascolta! 🎤';$('command').innerHTML=c[0]+' '+c[1]+'<small>'+instruction+'</small>';$('character').className='character '+c[2];$('character').style.animationDuration=(1.1/[0.7,1,2,3][speed-1]).toFixed(2)+'s';}
 function stopCharacter(){$('character').className='character';}
 function format(t){return '⏱️ '+Math.max(0,t).toFixed(1)+' s'}
 async function initAudio(){
@@ -151,7 +151,7 @@ function loop(now){
    }
   }
  }
- if(now-lastCommand>(6000-(speed-1)*900)){setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now}
+ if(now-lastCommand>(6000-(speed-1)*700)){setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now}
  if(now>=nextEventAt&&!eventDone){chooseEvent();eventDone=true;nextEventAt=now+18000+Math.random()*16000}
  if(eventDone&&now>nextEventAt-2500)eventDone=false;
  if(!eventActive&&!silencePause&&elapsed>8&&now>=nextSilenceAt){startSilencePause(now);nextSilenceAt=now+26000+Math.random()*12000;}
