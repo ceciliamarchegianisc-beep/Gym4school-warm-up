@@ -40,7 +40,7 @@
 </div>
 <script>
 const $=id=>document.getElementById(id);
-let audioCtx=null, analyser=null, data=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, missionDuration=120, speed=2, lastHit=0;
+let audioCtx=null, analyser=null, data=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, missionDuration=120, speed=2, lastHit=0, silencePause=false, silenceStart=0, silenceDuration=0;
 const isIPad=/iPad|Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1;
 const commands=[
  ['🏃','CORRI SUL POSTO','running'],['🦘','SALTELLI','jumping'],['↔️','SPOSTAMENTO LATERALE','side'],['🙆','BRACCIA SU','arms'],['🏋️','SQUAT','squat'],['👏','BATTITI','clap']
@@ -110,6 +110,8 @@ function updateEvent(now){
  if(success){finishEvent(true);return}
  if(elapsed>=eventDuration)finishEvent(false);
 }
+function startSilencePause(now){silencePause=true;silenceStart=now;silenceDuration=3200+Math.random()*1800;stopCharacter();$('command').innerHTML='🤫 PAUSA SILENZIO<small>Fermati e resta in silenzio...</small>';$('status').textContent='🤫 SILENZIO';}
+function updateSilencePause(now){const a=audioLevel();const elapsed=now-silenceStart;$('meterFill').style.width=Math.min(100,elapsed/silenceDuration*100)+'%';if(loud(a)){score=Math.max(0,score-1);$('score').textContent=score;$('status').textContent='🔊 Hai fatto rumore!';}if(elapsed>=silenceDuration){silencePause=false;$('meterFill').style.width='0%';$('status').textContent='🔥 VIA!';setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now;}}
 function chooseEvent(){
  const kinds=['silence','noise','boost'];eventKind=kinds[Math.floor(Math.random()*kinds.length)];openEvent(eventKind);
 }
@@ -118,10 +120,11 @@ function loop(now){
  const elapsed=(now-startTime)/1000, left=missionDuration-elapsed;
  $('timer').textContent='⏱️ '+Math.max(0,left).toFixed(1)+' s';
  if(eventActive){updateEvent(now);raf=requestAnimationFrame(loop);return}
+ if(silencePause){updateSilencePause(now);raf=requestAnimationFrame(loop);return}
  if(elapsed>=missionDuration){finishGame();return}
  const a=audioLevel();
  if(current&&current[2]==='clap'&&loud(a)&&now-lastHit>900){score+=2;$('score').textContent=score;$('status').textContent='👏 BATTITO RILEVATO! +2';lastHit=now;$('character').className='character react';setTimeout(()=>running&&current&&current[2]==='clap'&&setCommand(current),350)}
- if(now-lastCommand>(6000-(speed-1)*900)){setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now}
+ if(now-lastCommand>(6000-(speed-1)*900)){if(Math.random()<.22){startSilencePause(now)}else{setCommand(commands[Math.floor(Math.random()*commands.length)])}lastCommand=now}
  if(now>=nextEventAt&&!eventDone){chooseEvent();eventDone=true;nextEventAt=now+18000+Math.random()*16000}
  if(eventDone&&now>nextEventAt-2500)eventDone=false;
  raf=requestAnimationFrame(loop);
@@ -133,13 +136,13 @@ async function startGame(){
  if(audioCtx.state==='suspended')await audioCtx.resume();
  $('result').classList.remove('show');score=0;$('score').textContent='0';$('status').textContent='🎤 Ascolto l’ambiente...';
  await calibrate();
- running=true;startTime=performance.now();lastHit=0;lastCommand=startTime-3000;nextEventAt=startTime+Math.min(12000,missionDuration*1000*.25);eventDone=false;setCommand(commands[0]);$('status').textContent='🔥 VIA!';$('start').disabled=true;$('stop').disabled=false;cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);
+ running=true;silencePause=false;startTime=performance.now();lastHit=0;lastCommand=startTime-3000;nextEventAt=startTime+Math.min(12000,missionDuration*1000*.25);eventDone=false;setCommand(commands[0]);$('status').textContent='🔥 VIA!';$('start').disabled=true;$('stop').disabled=false;cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);
 }
 function stopGame(){
- running=false;cancelAnimationFrame(raf);eventActive=false;$('event').classList.remove('show');stopCharacter();
+ running=false;cancelAnimationFrame(raf);eventActive=false;silencePause=false;$('event').classList.remove('show');stopCharacter();
  $('start').disabled=false;$('stop').disabled=true;$('timer').textContent='⏱️ '+missionDuration+' s';$('status').textContent='⏹️ Missione fermata';
 }
-function finishGame(){running=false;cancelAnimationFrame(raf);stopCharacter();$('start').disabled=false;$('stop').disabled=true;$('timer').textContent='⏱️ 00.0 s';$('finalScore').textContent='⭐ '+score;$('result').classList.add('show');$('command').innerHTML='MISSIONE COMPLETATA<small>Ben fatto!</small>'}
+function finishGame(){running=false;cancelAnimationFrame(raf);silencePause=false;stopCharacter();$('start').disabled=false;$('stop').disabled=true;$('timer').textContent='⏱️ 00.0 s';$('finalScore').textContent='⭐ '+score;$('result').classList.add('show');$('command').innerHTML='MISSIONE COMPLETATA<small>Ben fatto!</small>'}
 $('start').onclick=startGame;$('stop').onclick=stopGame;$('again').onclick=startGame;$('speed').oninput=e=>{speed=parseInt(e.target.value,10);$('speedValue').textContent=speed;if(current)setCommand(current)};$('duration').onchange=e=>{if(!running){missionDuration=parseInt(e.target.value,10);$('timer').textContent='⏱️ '+(missionDuration===120?'02:00':missionDuration+' s')}};
 $('full').onclick=async()=>{try{if(!document.fullscreenElement){if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();else if(document.documentElement.webkitRequestFullscreen)document.documentElement.webkitRequestFullscreen()}else if(document.exitFullscreen)await document.exitFullscreen()}catch(e){console.error(e)}};
 document.addEventListener('fullscreenchange',()=>{$('full').textContent=document.fullscreenElement?'↙️ USCITA SCHERMO INTERO':'⛶ SCHERMO INTERO'});document.addEventListener('webkitfullscreenchange',()=>{$('full').textContent=document.webkitFullscreenElement?'↙️ USCITA SCHERMO INTERO':'⛶ SCHERMO INTERO'});document.addEventListener('visibilitychange',()=>{if(document.hidden&&running){stopGame();}});
