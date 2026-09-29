@@ -89,7 +89,7 @@ button,select,input{touch-action:manipulation;-webkit-tap-highlight-color:transp
 </div>
 <script>
 const $=id=>document.getElementById(id);
-let audioCtx=null, analyser=null, data=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, missionDuration=120, speed=2, lastHit=0, silencePause=false, silenceStart=0, silenceDuration=0, actionSoundCount=0, lastActionSound=0, nextSilenceAt=0;
+let audioCtx=null, analyser=null, data=null, freqData=null, floatData=null, micStream=null, running=false, startTime=0, score=0, current=null, eventActive=false, eventDone=false, raf=0, lastCommand=0, nextEventAt=0, eventKind=null, eventStart=0, eventDuration=0, baseline=0.01, baselinePeak=8, floatBaseline=.003, floatPeakBaseline=.02, baselineFlux=1, prevSpectrum=null, missionDuration=120, speed=2, lastHit=0, silencePause=false, silenceStart=0, silenceDuration=0, actionSoundCount=0, lastActionSound=0, nextSilenceAt=0, noiseActive=false, lastNoiseEvent=0, silentSince=0;
 const isIPad=/iPad|Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1;
 const commands=[
  ['🏃','CORRI SUL POSTO','running'],['🦘','SALTELLI','jumping'],['↔️','SPOSTAMENTO LATERALE','side'],['🙆','BRACCIA SU','arms'],['🏋️','SQUAT','squat'],['👏','BATTITI','clap']
@@ -106,8 +106,15 @@ async function initAudio(){
  try{
   micStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:1},video:false});
   audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  const src=audioCtx.createMediaStreamSource(micStream); analyser=audioCtx.createAnalyser(); analyser.fftSize=isIPad?2048:1024; analyser.smoothingTimeConstant=.12; src.connect(analyser);
-  data=new Uint8Array(analyser.fftSize); if(analyser.getFloatTimeDomainData)floatData=new Float32Array(analyser.fftSize);
+  await audioCtx.resume();
+  const src=audioCtx.createMediaStreamSource(micStream);
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=isIPad?512:1024;
+  analyser.smoothingTimeConstant=isIPad?.05:.12;
+  src.connect(analyser);
+  data=new Uint8Array(analyser.fftSize);
+  freqData=new Uint8Array(analyser.frequencyBinCount);
+  if(analyser.getFloatTimeDomainData)floatData=new Float32Array(analyser.fftSize);
   $('micStatus').textContent='🎤 MIC PRONTO';$('status').textContent='🎤 Microfono attivo';
   $('stage').querySelector('.mic')?.classList.add('live');
   return true;
@@ -117,34 +124,69 @@ async function initAudio(){
  }
 }
 function updateMicMeter(a){
- const raw=Math.max(a.rms/42,a.floatRms/.08,a.peak/90);
- const pct=Math.min(100,Math.max(0,raw*100));
+ const pct=meterPercent(a);
  const fill=$('micFill');if(fill)fill.style.width=pct+'%';
- if(a.rms>0||a.floatRms>0){$('micStatus').textContent=pct>18?'🎤 SUONO RILEVATO':'🎤 ASCOLTO';}
- if(pct>18)$('stage').querySelector('.mic')?.classList.add('hit');else $('stage').querySelector('.mic')?.classList.remove('hit');
+ const detected=loud(a);
+ if(detected){$('micStatus').textContent='🎤 SUONO RILEVATO';$('stage').querySelector('.mic')?.classList.add('hit');}
+ else{$('micStatus').textContent='🎤 ASCOLTO';$('stage').querySelector('.mic')?.classList.remove('hit');}
 }
 function audioLevel(){
- if(!analyser)return {rms:0,peak:0};
- analyser.getByteTimeDomainData(data);let sum=0,peak=0;
+ if(!analyser)return {rms:0,peak:0,floatRms:0,floatPeak:0,flux:0};
+ analyser.getByteTimeDomainData(data);
+ if(freqData)analyser.getByteFrequencyData(freqData);
+ let flux=0;
+ if(freqData&&prevSpectrum){
+  for(let i=3;i<Math.min(freqData.length,90);i++){const d=freqData[i]-prevSpectrum[i];if(d>0)flux+=d;}
+ }
+ if(freqData)prevSpectrum=freqData.slice();
+
+ let sum=0,peak=0;
  for(let i=0;i<data.length;i++){let d=Math.abs(data[i]-128);sum+=d*d;if(d>peak)peak=d}
- let rms=Math.sqrt(sum/data.length);
- if(floatData&&analyser.getFloatTimeDomainData){analyser.getFloatTimeDomainData(floatData);let fs=0,fp=0;for(let i=0;i<floatData.length;i++){let v=Math.abs(floatData[i]);fs+=v*v;if(v>fp)fp=v}const out={rms:rms,peak:peak,floatRms:Math.sqrt(fs/floatData.length),floatPeak:fp};updateMicMeter(out);return out}
- const out={rms,peak,floatRms:0,floatPeak:0};updateMicMeter(out);return out;
+ const rms=Math.sqrt(sum/data.length);
+ let floatRms=0,floatPeak=0;
+ if(floatData&&analyser.getFloatTimeDomainData){
+  analyser.getFloatTimeDomainData(floatData);
+  let fs=0,fp=0;
+  for(let i=0;i<floatData.length;i++){let v=Math.abs(floatData[i]);fs+=v*v;if(v>fp)fp=v}
+  floatRms=Math.sqrt(fs/floatData.length);floatPeak=fp;
+ }
+ const out={rms,peak,floatRms,floatPeak,flux};
+ updateMicMeter(out);
+ return out;
 }
 async function calibrate(){
- const t=performance.now()+1500;let rs=[],ps=[],fr=[],fp=[];
- while(performance.now()<t){let a=audioLevel();rs.push(a.rms);ps.push(a.peak);fr.push(a.floatRms);fp.push(a.floatPeak);await new Promise(r=>setTimeout(r,60))}
- baseline=Math.max(.5,rs.reduce((a,b)=>a+b,0)/rs.length);baselinePeak=Math.max(2,ps.reduce((a,b)=>a+b,0)/ps.length);floatBaseline=Math.max(.001,fr.reduce((a,b)=>a+b,0)/fr.length);floatPeakBaseline=Math.max(.01,fp.reduce((a,b)=>a+b,0)/fp.length);
+ const calibStart=performance.now(), samples=[], peaks=[], fluxes=[], fr=[], fp=[];
+ $('status').textContent='🤫 Calibrazione iPad: ascolto l’ambiente...';
+ prevSpectrum=null;
+ while(performance.now()-calibStart<3000){
+  const a=audioLevel();
+  samples.push(a.rms);peaks.push(a.peak);fluxes.push(a.flux);fr.push(a.floatRms);fp.push(a.floatPeak);
+  await new Promise(r=>setTimeout(r,30));
+ }
+ samples.sort((a,b)=>a-b);peaks.sort((a,b)=>a-b);fluxes.sort((a,b)=>a-b);fr.sort((a,b)=>a-b);fp.sort((a,b)=>a-b);
+ const q=Math.floor(samples.length*.7);
+ baseline=samples[q]||.001;
+ baselinePeak=peaks[q]||.01;
+ baselineFlux=fluxes[q]||1;
+ floatBaseline=fr[q]||.001;
+ floatPeakBaseline=fp[q]||.01;
+ $('status').textContent='✅ Calibrato. Ora il microfono reagisce ai rumori.';
 }
 function loud(a){
- return isIPad ? (a.floatRms>=Math.max(floatBaseline*1.35,.004)||a.floatPeak>=Math.max(floatPeakBaseline*1.25,.025)||a.peak>=Math.max(3,baselinePeak*1.25)) : (a.rms>=Math.max(6,baseline*1.35)||a.peak>=Math.max(4,baselinePeak*1.25));
+ if(isIPad){
+  const noiseFloor=Math.max(.003,baseline);
+  const fluxThreshold=Math.max(18,baselineFlux*3.2+10);
+  const peakThreshold=Math.max(7,baselinePeak*2.4);
+  const rmsThreshold=Math.max(.012,noiseFloor*2.15);
+  const transient=(a.flux>=fluxThreshold&&a.peak>=5)||(a.peak>=peakThreshold&&a.rms>=rmsThreshold);
+  const sustained=a.rms>=rmsThreshold;
+  return transient||sustained;
+ }
+ return a.rms>=Math.max(6,baseline*1.35)||a.peak>=Math.max(4,baselinePeak*1.25);
 }
-// Per CORSA e SALTELLI usiamo una soglia più sensibile: i passi/atterraggi
-// producono spesso un suono più breve e meno intenso di voce e battiti.
-function movementLoud(a){
- return isIPad
-  ? (a.floatRms>=Math.max(floatBaseline*1.12,.0022)||a.floatPeak>=Math.max(floatPeakBaseline*1.08,.012)||a.peak>=Math.max(2,baselinePeak*1.08))
-  : (a.rms>=Math.max(3,baseline*1.15)||a.peak>=Math.max(2,baselinePeak*1.08));
+function movementLoud(a){return loud(a)}
+function meterPercent(a){
+ return Math.min(100,Math.max(a.flux*1.2,a.peak*4,a.rms*1800));
 }
 function openEvent(kind){
  eventActive=true;eventDone=false;eventKind=kind;eventStart=performance.now();eventDuration=kind==='silence'?5200:4200;$('event').classList.add('show');$('meterFill').style.width='0%';
@@ -179,11 +221,23 @@ function loop(now){
  if(silencePause){updateSilencePause(now);raf=requestAnimationFrame(loop);return}
  if(elapsed>=missionDuration){finishGame();return}
  const a=audioLevel();
+ const detected=loud(a);
+ $('micFill').style.width=meterPercent(a)+'%';
+ if(isIPad){
+  if(!noiseActive && detected && now-lastNoiseEvent>450){noiseActive=true;lastNoiseEvent=now;}
+  if(noiseActive){
+   const releaseThreshold=Math.max(.007,Math.max(.003,baseline)*1.45);
+   if(a.rms<releaseThreshold && a.peak<Math.max(3,baselinePeak*1.35)){
+    if(!silentSince)silentSince=now;
+    if(now-silentSince>=220){noiseActive=false;silentSince=0;}
+   }else{silentSince=0;}
+  }
+ }
  if(current){
   const kind=current[2];
   const isMovement=kind==='running'||kind==='jumping';
-  const detected=isMovement?movementLoud(a):loud(a);
-  if(detected){
+  const detectedForScore=isIPad?((noiseActive||detected)):detected;
+  if(detectedForScore){
    let gap=900,points=2,label='👏 SUONO RILEVATO! +2';
    if(kind==='running'){gap=350;points=1;label='🏃 PASSO RILEVATO! +1';}
    else if(kind==='jumping'){gap=450;points=1;label='🦘 SALTELLO RILEVATO! +1';}
@@ -208,7 +262,7 @@ function loop(now){
 }
 async function startGame(){
  if(running)return;
- missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;actionSoundCount=0;
+ missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;actionSoundCount=0;noiseActive=false;lastNoiseEvent=0;silentSince=0;prevSpectrum=null;
  const ok=await initAudio();if(!ok)return;
  if(audioCtx.state==='suspended')await audioCtx.resume();
  $('result').classList.remove('show');score=0;$('score').textContent='0';$('status').textContent='🎤 Ascolto l’ambiente...';
