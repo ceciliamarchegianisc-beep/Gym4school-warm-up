@@ -185,8 +185,12 @@ function loud(a){
  return a.rms>=Math.max(6,baseline*1.35)||a.peak>=Math.max(4,baselinePeak*1.25);
 }
 function movementLoud(a){return loud(a)}
+let smoothMeter=0;
 function meterPercent(a){
- return Math.min(100,Math.max(a.flux*3,a.peak*12,a.rms*5000));
+ const raw=Math.min(100,Math.max(a.flux*3,a.peak*12,a.rms*5000));
+ smoothMeter=smoothMeter*0.72+raw*0.28;
+ if(raw>smoothMeter+18)smoothMeter=raw;
+ return Math.round(smoothMeter);
 }
 function openEvent(kind){
  eventActive=true;eventDone=false;eventKind=kind;eventStart=performance.now();eventDuration=kind==='silence'?5200:4200;$('event').classList.add('show');$('meterFill').style.width='0%';
@@ -262,7 +266,7 @@ function loop(now){
 }
 async function startGame(){
  if(running)return;
- missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;actionSoundCount=0;noiseActive=false;lastNoiseEvent=0;silentSince=0;lastSoundSeen=0;prevSpectrum=null;
+ missionDuration=parseInt($('duration').value,10)||120;speed=parseInt($('speed').value,10)||2;actionSoundCount=0;smoothMeter=0;noiseActive=false;lastNoiseEvent=0;silentSince=0;lastSoundSeen=0;prevSpectrum=null;
  const ok=await initAudio();if(!ok)return;
  if(audioCtx.state==='suspended')await audioCtx.resume();
  $('result').classList.remove('show');score=0;$('score').textContent='0';$('status').textContent='🎤 Ascolto l’ambiente...';
