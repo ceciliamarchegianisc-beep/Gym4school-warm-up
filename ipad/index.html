@@ -174,20 +174,19 @@ async function calibrate(){
 }
 function loud(a){
  if(isIPad){
-  const noiseFloor=Math.max(.003,baseline);
-  const fluxThreshold=Math.max(18,baselineFlux*3.2+10);
-  const peakThreshold=Math.max(7,baselinePeak*2.4);
-  const rmsThreshold=Math.max(.010,noiseFloor*1.8);
-  const voiceThreshold=Math.max(.0075,noiseFloor*1.20);
-  const transient=(a.flux>=fluxThreshold&&a.peak>=4)||(a.peak>=peakThreshold&&a.rms>=rmsThreshold);
-  const sustained=a.rms>=voiceThreshold;
+  const noiseFloor=Math.max(.001,baseline);
+  const fluxThreshold=Math.max(8,baselineFlux*2.2+4);
+  const peakThreshold=Math.max(3,baselinePeak*1.5);
+  const rmsThreshold=Math.max(.004,noiseFloor*1.15);
+  const transient=(a.flux>=fluxThreshold&&a.peak>=2)||(a.peak>=peakThreshold&&a.rms>=rmsThreshold);
+  const sustained=a.rms>=rmsThreshold;
   return transient||sustained;
  }
  return a.rms>=Math.max(6,baseline*1.35)||a.peak>=Math.max(4,baselinePeak*1.25);
 }
 function movementLoud(a){return loud(a)}
 function meterPercent(a){
- return Math.min(100,Math.max(a.flux*1.2,a.peak*4,a.rms*1800));
+ return Math.min(100,Math.max(a.flux*3,a.peak*12,a.rms*5000));
 }
 function openEvent(kind){
  eventActive=true;eventDone=false;eventKind=kind;eventStart=performance.now();eventDuration=kind==='silence'?5200:4200;$('event').classList.add('show');$('meterFill').style.width='0%';
