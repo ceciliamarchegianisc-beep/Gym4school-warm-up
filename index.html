@@ -130,7 +130,27 @@ function loop(now){
  if(silencePause){updateSilencePause(now);raf=requestAnimationFrame(loop);return}
  if(elapsed>=missionDuration){finishGame();return}
  const a=audioLevel();
- if(current){const kind=current[2];const detected=(kind==='running'||kind==='jumping')?movementLoud(a):loud(a);if(detected){let gap=900,points=2,label='👏 SUONO RILEVATO! +2';if(kind==='running'){gap=420;points=1;label='🏃 PASSO RILEVATO! +1'}else if(kind==='jumping'){gap=520;points=1;label='🦘 SALTELLO RILEVATO! +1'}else if(kind==='arms'){gap=650;points=1;label='🤌 SCHIOCCO RILEVATO! +1'}else if(kind==='squat'){gap=750;points=1;label='🏋️ CONTEGGIO RILEVATO! +1'}if(points&&now-lastActionSound>gap){score+=points;actionSoundCount++;$('score').textContent=score;$('status').textContent=label;lastActionSound=now;$('character').className='character react';setTimeout(()=>running&&current&&current[2]===kind&&setCommand(current),300)}}}
+ if(current){
+  const kind=current[2];
+  const isMovement=kind==='running'||kind==='jumping';
+  const detected=isMovement?movementLoud(a):loud(a);
+  if(detected){
+   let gap=900,points=2,label='👏 SUONO RILEVATO! +2';
+   if(kind==='running'){gap=350;points=1;label='🏃 PASSO RILEVATO! +1';}
+   else if(kind==='jumping'){gap=450;points=1;label='🦘 SALTELLO RILEVATO! +1';}
+   else if(kind==='arms'){gap=650;points=1;label='🤌 SCHIOCCO RILEVATO! +1';}
+   else if(kind==='squat'){gap=750;points=1;label='🏋️ CONTEGGIO RILEVATO! +1';}
+   if(now-lastActionSound>=gap){
+    score+=points;
+    actionSoundCount++;
+    $('score').textContent=score;
+    $('status').textContent=label;
+    lastActionSound=now;
+    $('character').className='character react';
+    setTimeout(()=>running&&current&&current[2]===kind&&setCommand(current),300);
+   }
+  }
+ }
  if(now-lastCommand>(6000-(speed-1)*900)){setCommand(commands[Math.floor(Math.random()*commands.length)]);lastCommand=now}
  if(now>=nextEventAt&&!eventDone){chooseEvent();eventDone=true;nextEventAt=now+18000+Math.random()*16000}
  if(eventDone&&now>nextEventAt-2500)eventDone=false;
