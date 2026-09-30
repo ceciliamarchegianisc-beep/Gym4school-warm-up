@@ -93,7 +93,12 @@ function soundCountsForPoint(a){
  const strongRms=rmsRatio>=1.45;
  const strongFlux=fluxRatio>=1.8;
  if(kind==='clap') return transient&&strongPeak&&strongFlux;
- if(kind==='arms') return transient&&strongPeak&&strongFlux;
+ if(kind==='arms'){
+  const fingerSnapPeak=peakRatio>=1.35;
+  const fingerSnapFlux=fluxRatio>=1.25;
+  const fingerSnapRise=rise>=.12;
+  return fingerSnapRise&&fingerSnapPeak&&fingerSnapFlux;
+ }
  if(kind==='running'||kind==='jumping') return transient&&strongPeak&&strongRms;
  if(kind==='squat') return (strongRms&&rise>=.12)||(transient&&strongPeak);
  return transient&&strongPeak&&strongFlux;
