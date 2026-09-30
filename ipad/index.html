@@ -77,18 +77,10 @@ function loud(a){if(isIPad){const noiseFloor=Math.max(.001,baseline);const fluxT
 function movementLoud(a){return loud(a)}
 function soundCountsForPoint(a){
  if(!isIPad) return loud(a);
- const rmsBase=Math.max(.001,baseline);
- const peakBase=Math.max(2,baselinePeak);
- const fluxBase=Math.max(1,baselineFlux);
- const peakThreshold=Math.max(5,peakBase*1.25);
- const rmsThreshold=Math.max(.004,rmsBase*1.15);
- const fluxThreshold=Math.max(8,fluxBase*2.0);
- const risingPeak=a.peak>=prevScorePeak+1;
- const risingRms=a.rms>=prevScoreRms*1.10;
- const realEvent=a.peak>=peakThreshold && ((a.flux>=fluxThreshold && risingPeak) || (a.rms>=rmsThreshold && risingPeak && risingRms));
+ const detected=loud(a);
  prevScorePeak=a.peak;
  prevScoreRms=a.rms;
- return loud(a) && realEvent;
+ return detected;
 }
 function meterPercent(a){return Math.min(100,Math.max(a.flux*3,a.peak*12,a.rms*5000));}
 function openEvent(kind){eventActive=true;eventDone=false;eventKind=kind;eventStart=performance.now();eventDuration=kind==='silence'?5200:4200;$('event').classList.add('show');$('meterFill').style.width='0%';if(kind==='silence'){$('eventIcon').textContent='🤫';$('eventTitle').textContent='MISSIONE SILENZIO';$('eventText').textContent='Fermati e resta in silenzio!';}else if(kind==='noise'){$('eventIcon').textContent='📣';$('eventTitle').textContent='FATTI SENTIRE!';$('eventText').textContent='Batti le mani o fai un suono forte!';}else{$('eventIcon').textContent='🚀';$('eventTitle').textContent='ATTIVA IL BOOST!';$('eventText').textContent='Un grande applauso per caricare il turbo!';}stopCharacter();}
